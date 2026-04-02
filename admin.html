@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DokumentenOrganizer – Lizenzverwaltung</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#1f2937; --surface3:#2d3748;
+  --border:#2d3748; --border2:#3d4f66;
+  --accent:#f59e0b; --accent2:#34d399; --danger:#f87171; --info:#60a5fa;
+  --text:#e2e8f0; --text2:#8b9ab0; --text3:#4a5568;
+  --mono:'DM Mono',monospace; --body:'Outfit',sans-serif; --serif:'Instrument Serif',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;min-height:100vh;}
+
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--serif);font-size:20px;letter-spacing:-.3px;}
+.logo span{color:var(--accent);}
+.admin-badge{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--accent);padding:3px 12px;border-radius:100px;font-size:11px;font-weight:600;letter-spacing:.06em;}
+
+.main{max-width:1100px;margin:0 auto;padding:32px;}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:20px;}
+.card-title{font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+.card-title .icon{font-size:18px;}
+
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.fg label{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;}
+.fg input,.fg select{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s;width:100%;}
+.fg input:focus,.fg select:focus{border-color:var(--accent);}
+.fg .hint{font-size:11px;color:var(--text3);}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-family:var(--body);font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#0d1117;}
+.btn-primary:hover:not(:disabled){background:#fbbf24;}
+.btn-success{background:var(--accent2);color:#0d1117;}
+.btn-success:hover:not(:disabled){background:#6ee7b7;}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text);}
+.btn-danger{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--danger);}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn-full{width:100%;justify-content:center;padding:12px;}
+
+.secret-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;}
+.secret-label{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.secret-val{font-family:var(--mono);font-size:13px;color:var(--accent);word-break:break-all;line-height:1.6;}
+
+.lic-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;transition:border-color .15s;}
+.lic-card:hover{border-color:var(--border2);}
+.lic-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;}
+.lic-name{font-weight:600;font-size:14px;}
+.lic-id{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.lic-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--body);}
+.lic-active{background:rgba(52,211,153,.12);color:var(--accent2);}
+.lic-expired{background:rgba(248,113,113,.12);color:var(--danger);}
+.lic-key-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.lic-key{font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all;line-height:1.6;}
+.lic-meta{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.lic-actions{display:flex;gap:8px;margin-top:8px;}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center;}
+.stat-num{font-size:28px;font-weight:700;color:var(--accent);font-family:var(--serif);}
+.stat-lbl{font-size:11px;color:var(--text3);margin-top:2px;}
+
+.empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
+.search-wrap{position:relative;margin-bottom:16px;}
+.search-wrap input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px 9px 36px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;}
+.search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;}
+
+#toastWrap{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transform:translateX(20px);transition:all .25s;max-width:340px;}
+.toast.show{opacity:1;transform:translateX(0);}
+.t-ok{background:#052e16;border:1px solid #166534;color:#86efac;}
+.t-err{background:#2d0707;border:1px solid #991b1b;color:#fca5a5;}
+.t-info{background:#0c1f3a;border:1px solid #1e4d8c;color:#93c5fd;}
+
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.admin-pw-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.pw-box{width:360px;text-align:center;}
+.pw-title{font-family:var(--serif);font-size:28px;margin-bottom:6px;}
+.pw-title span{color:var(--accent);}
+.pw-sub{color:var(--text3);font-size:13px;margin-bottom:28px;}
+.pw-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;color:var(--text);font-family:var(--mono);font-size:14px;letter-spacing:.1em;outline:none;text-align:center;margin-bottom:10px;}
+.pw-btn{width:100%;padding:12px;background:var(--accent);color:#0d1117;border:none;border-radius:10px;font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;}
+.pw-err{color:var(--danger);font-size:12px;margin-top:8px;display:none;}
+
+@media(max-width:800px){.grid{grid-template-columns:1fr;}.stats-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div id="toastWrap"></div>
+
+<!-- ADMIN PASSWORD SCREEN -->
+<div id="pwScreen" class="admin-pw-screen">
+  <div class="pw-box">
+    <div class="pw-title">Admin<span>Panel</span></div>
+    <div class="pw-sub">DokumentenOrganizer Lizenzverwaltung</div>
+    <input class="pw-input" id="pwInput" type="password" placeholder="Passwort" maxlength="50">
+    <button class="pw-btn" onclick="checkPw()">Einloggen</button>
+    <div class="pw-err" id="pwErr">Falsches Passwort</div>
+  </div>
+</div>
+
+<!-- MAIN ADMIN -->
+<div id="adminMain" style="display:none;">
+  <div class="header">
+    <div class="logo">Dokument<span>Organizer</span></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="admin-badge">ADMIN</span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Abmelden</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="grid">
+
+      <!-- LEFT: Neue Lizenz -->
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🔑</span>Neue Lizenz erstellen</div>
+
+          <div class="fg">
+            <label>Name des Kunden</label>
+            <input type="text" id="licName" placeholder="z.B. Max Mustermann">
+          </div>
+          <div class="fg">
+            <label>E-Mail (optional, nur zur Info)</label>
+            <input type="email" id="licEmail" placeholder="kunde@beispiel.de">
+          </div>
+          <div class="fg">
+            <label>Ablaufdatum</label>
+            <input type="date" id="licExpiry">
+            <span class="hint">Nach diesem Datum ist die Lizenz ungültig</span>
+          </div>
+          <div class="fg">
+            <label>Lizenz-Typ</label>
+            <select id="licType">
+              <option value="standard">Standard (1 Jahr)</option>
+              <option value="lifetime">Dauerlizenz (10 Jahre)</option>
+              <option value="trial">Test (30 Tage)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-full" onclick="generateLicense()">🔑 Lizenz generieren</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">⚙️</span>Admin-Einstellungen</div>
+          <div class="fg">
+            <label>Admin-Passwort ändern</label>
+            <input type="password" id="newPw" placeholder="Neues Passwort">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="changePw()">Passwort ändern</button>
+          <hr class="divider">
+          <div class="fg">
+            <label>Geheimer Signierschlüssel</label>
+            <div class="hint" style="margin-bottom:6px;">Muss in beiden Dateien (admin.html + index.html) identisch sein. Nur ändern wenn beide Dateien gleichzeitig aktualisiert werden.</div>
+            <input type="password" id="secretKey" placeholder="Aktueller Secret anzeigen">
+            <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="toggleSecret()">Anzeigen/Verbergen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Lizenzliste -->
+      <div>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-lbl">Lizenzen gesamt</div></div>
+          <div class="stat-box"><div class="stat-num" id="statActive">0</div><div class="stat-lbl">Aktiv</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">📋</span>Alle Lizenzen</div>
+          <div class="search-wrap"><input type="text" id="searchInput" placeholder="Suchen..." oninput="renderList()"></div>
+          <div id="licList"><div class="empty">Noch keine Lizenzen generiert</div></div>
+          <hr class="divider">
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Als CSV exportieren</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// SHARED SECRET – muss mit index.html übereinstimmen
+// ══════════════════════════════════════════════
+const _S = ['D0k','uS0','rt_','25vk','_x9q'];
+const SECRET = _S.join('');
+
+// ══════════════════════════════════════════════
+// ADMIN AUTH
+// ══════════════════════════════════════════════
+// Standard-Passwort: DokuAdmin2025 (bitte nach erstem Login ändern!)
+const DEFAULT_PW_HASH = '8b4f2a9c1e3d6b7a0f5c8e2d4a9b1c3e'; // Platzhalter – wird durch Hash ersetzt
+
+async function hashPw(pw) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(pw + '_ds_admin_salt'));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkPw() {
+  const pw = document.getElementById('pwInput').value;
+  const hash = await hashPw(pw);
+  const stored = localStorage.getItem('ds_admin_pw_hash');
+
+  // Erst-Login: Kein Hash gespeichert → Standard-Passwort prüfen
+  if (!stored) {
+    if (pw === 'DokuAdmin2025') {
+      localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
+      showAdmin();
+    } else {
+      showPwErr();
+    }
+    return;
+  }
+  if (hash === stored) { showAdmin(); }
+  else { showPwErr(); }
+}
+
+function showAdmin() {
+  document.getElementById('pwScreen').style.display = 'none';
+  document.getElementById('adminMain').style.display = 'block';
+  document.getElementById('pwInput').value = '';
+  renderList();
+  updateStats();
+  // Ablaufdatum vorausfüllen (1 Jahr)
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  document.getElementById('licExpiry').value = d.toISOString().split('T')[0];
+  document.getElementById('licType').addEventListener('change', updateExpiry);
+}
+
+function showPwErr() {
+  document.getElementById('pwErr').style.display = 'block';
+  setTimeout(() => document.getElementById('pwErr').style.display = 'none', 3000);
+}
+
+function logout() {
+  document.getElementById('adminMain').style.display = 'none';
+  document.getElementById('pwScreen').style.display = 'flex';
+}
+
+async function changePw() {
+  const pw = document.getElementById('newPw').value.trim();
+  if (pw.length < 8) { toast('Passwort muss mindestens 8 Zeichen haben', 'err'); return; }
+  localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
+  document.getElementById('newPw').value = '';
+  toast('Passwort geändert', 'ok');
+}
+
+function updateExpiry() {
+  const type = document.getElementById('licType').value;
+  const d = new Date();
+  if (type === 'standard') d.setFullYear(d.getFullYear() + 1);
+  else if (type === 'lifetime') d.setFullYear(d.getFullYear() + 10);
+  else d.setDate(d.getDate() + 30);
+  document.getElementById('licExpiry').value = d.toISOString().split('T')[0];
+}
+
+document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') checkPw(); });
+
+// ══════════════════════════════════════════════
+// LICENCE GENERATION
+// ══════════════════════════════════════════════
+async function hmac(data) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(SECRET), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+  return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function generateLicense() {
+  const name = document.getElementById('licName').value.trim();
+  const email = document.getElementById('licEmail').value.trim();
+  const expiry = document.getElementById('licExpiry').value;
+
+  if (!name) { toast('Bitte Kundennamen eingeben', 'err'); return; }
+  if (!expiry) { toast('Bitte Ablaufdatum wählen', 'err'); return; }
+
+  const id = 'DS-' + Date.now().toString(36).toUpperCase();
+  const payload = btoa(JSON.stringify({id, name, email, expiry, created: new Date().toISOString().split('T')[0]}))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  const sig = await hmac(payload);
+  const licenseKey = payload + '.' + sig;
+
+  // Speichern
+  const licenses = getLicenses();
+  licenses.unshift({id, name, email, expiry, licenseKey, created: new Date().toISOString().split('T')[0], active: true});
+  saveLicenses(licenses);
+
+  renderList();
+  updateStats();
+  toast('Lizenz für "' + name + '" erstellt', 'ok');
+  document.getElementById('licName').value = '';
+  document.getElementById('licEmail').value = '';
+}
+
+// ══════════════════════════════════════════════
+// LICENSE STORAGE
+// ══════════════════════════════════════════════
+function getLicenses() {
+  try { return JSON.parse(localStorage.getItem('ds_admin_licenses') || '[]'); } catch(e) { return []; }
+}
+
+function saveLicenses(list) {
+  localStorage.setItem('ds_admin_licenses', JSON.stringify(list));
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function renderList() {
+  const list = document.getElementById('licList');
+  const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  let licenses = getLicenses();
+  if (query) licenses = licenses.filter(l => (l.name+l.email+l.id).toLowerCase().includes(query));
+
+  if (licenses.length === 0) { list.innerHTML = '<div class="empty">Keine Lizenzen gefunden</div>'; return; }
+
+  list.innerHTML = licenses.map(l => {
+    const expired = new Date(l.expiry) < new Date();
+    return '<div class="lic-card">' +
+      '<div class="lic-card-top">' +
+      '<div><div class="lic-name">' + esc(l.name) + '</div><div class="lic-id">' + esc(l.id) + (l.email ? ' · ' + esc(l.email) : '') + '</div></div>' +
+      '<span class="lic-badge ' + (expired ? 'lic-expired' : 'lic-active') + '">' + (expired ? 'ABGELAUFEN' : 'AKTIV') + '</span>' +
+      '</div>' +
+      '<div class="lic-key-wrap"><div class="lic-key">' + esc(l.licenseKey) + '</div></div>' +
+      '<div class="lic-meta">Erstellt: ' + esc(l.created) + ' · Ablauf: ' + esc(l.expiry) + '</div>' +
+      '<div class="lic-actions">' +
+      '<button class="btn btn-ghost btn-sm" onclick="copyLic(\'' + esc(l.licenseKey) + '\')">📋 Kopieren</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="sendEmail(\'' + esc(l.email) + '\',\'' + esc(l.name) + '\',\'' + esc(l.licenseKey) + '\')">✉ E-Mail</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteLic(\'' + esc(l.id) + '\')">Löschen</button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function updateStats() {
+  const licenses = getLicenses();
+  document.getElementById('statTotal').textContent = licenses.length;
+  document.getElementById('statActive').textContent = licenses.filter(l => new Date(l.expiry) >= new Date()).length;
+}
+
+function copyLic(key) {
+  navigator.clipboard.writeText(key).then(() => toast('Lizenzschlüssel kopiert', 'ok')).catch(() => toast('Kopieren fehlgeschlagen – bitte manuell kopieren', 'err'));
+}
+
+function sendEmail(email, name, key) {
+  if (!email) { toast('Keine E-Mail-Adresse hinterlegt', 'err'); return; }
+  const subject = encodeURIComponent('Dein DokumentenOrganizer Lizenzschlüssel');
+  const body = encodeURIComponent(
+    'Hallo ' + name + ',\n\n' +
+    'hier ist dein persönlicher Lizenzschlüssel für DokumentenOrganizer:\n\n' +
+    key + '\n\n' +
+    'Öffne die App und gib diesen Schlüssel auf dem Startbildschirm ein.\n\n' +
+    'Viel Erfolg!\n'
+  );
+  window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
+}
+
+function deleteLic(id) {
+  if (!confirm('Lizenz wirklich löschen? Der Kunde kann sich danach nicht mehr einloggen.')) return;
+  const licenses = getLicenses().filter(l => l.id !== id);
+  saveLicenses(licenses);
+  renderList();
+  updateStats();
+  toast('Lizenz gelöscht', 'ok');
+}
+
+function exportCSV() {
+  const licenses = getLicenses();
+  if (licenses.length === 0) { toast('Keine Lizenzen vorhanden', 'err'); return; }
+  const rows = [['ID','Name','E-Mail','Erstellt','Ablauf','Status','Schlüssel']];
+  licenses.forEach(l => {
+    const expired = new Date(l.expiry) < new Date();
+    rows.push([l.id, l.name, l.email||'', l.created, l.expiry, expired?'Abgelaufen':'Aktiv', l.licenseKey]);
+  });
+  const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dokumentenorganizer-lizenzen-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportiert', 'ok');
+}
+
+function toggleSecret() {
+  const el = document.getElementById('secretKey');
+  el.type = el.type === 'password' ? 'text' : 'password';
+  if (el.type === 'text') el.value = SECRET;
+  else el.value = '';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type) {
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast t-' + (type||'info');
+  t.textContent = msg;
+  wrap.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => wrap.removeChild(t), 300); }, 4000);
+}
+</script>
+</body>
+</html>
