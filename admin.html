@@ -190,12 +190,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 
 <script>
 // ══════════════════════════════════════════════
-// SHARED SECRET – muss mit index.html übereinstimmen
-// ══════════════════════════════════════════════
-const _S = ['D0k','uS0','rt_','25vk','_x9q'];
-const SECRET = _S.join('');
-
-// ══════════════════════════════════════════════
 // ADMIN AUTH
 // ══════════════════════════════════════════════
 // Standard-Passwort: DokuAdmin2025 (bitte nach erstem Login ändern!)
@@ -269,16 +263,45 @@ function updateExpiry() {
 document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') checkPw(); });
 
 // ══════════════════════════════════════════════
-// LICENCE GENERATION
+// LIZENZ-SYSTEM v2 – kurze Schlüssel (identisch mit index.html)
 // ══════════════════════════════════════════════
-async function hmac(data) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey('raw', enc.encode(SECRET), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-  return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+const CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const SECRET = 'D0kuOrg_25vk_x9q';
+
+function _toB32(num, len) {
+  let r = '';
+  for (let i = 0; i < len; i++) { r = CHARS[num % 32] + r; num = Math.floor(num / 32); }
+  return r;
+}
+function _hash32(s, seed) {
+  let h = seed >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 0x9e3779b9);
+    h ^= h >>> 16;
+  }
+  return h >>> 0;
+}
+function _sign6(payload) {
+  const h1 = _hash32(payload + '|' + SECRET, 0xdeadbeef);
+  const h2 = _hash32(SECRET + '|' + payload, 0xcafebabe);
+  const combined = ((h1 & 0x7fff) * 32768 + (h2 & 0x7fff)) % (32*32*32*32*32*32);
+  return _toB32(combined, 6);
 }
 
-async function generateLicense() {
+function _generateKey(licId, expiryDate) {
+  const d = new Date(expiryDate);
+  const yy = d.getFullYear() - 2020;
+  const mm = d.getMonth() + 1;
+  const id3 = licId % 32768;
+  const seed = id3 * 1000 + yy * 100 + mm;
+  const pad5 = _toB32(_hash32(String(seed) + SECRET, 0xabcd1234) % (32*32*32*32*32), 5);
+  const payload = _toB32(id3, 3) + _toB32(yy, 1) + _toB32(mm - 1, 1) + pad5;
+  const sig = _sign6(payload);
+  const raw = payload + sig;
+  return raw.substring(0,4)+'-'+raw.substring(4,8)+'-'+raw.substring(8,12)+'-'+raw.substring(12,16);
+}
+
+function generateLicense() {
   const name = document.getElementById('licName').value.trim();
   const email = document.getElementById('licEmail').value.trim();
   const expiry = document.getElementById('licExpiry').value;
@@ -286,20 +309,20 @@ async function generateLicense() {
   if (!name) { toast('Bitte Kundennamen eingeben', 'err'); return; }
   if (!expiry) { toast('Bitte Ablaufdatum wählen', 'err'); return; }
 
-  const id = 'DS-' + Date.now().toString(36).toUpperCase();
-  const payload = btoa(JSON.stringify({id, name, email, expiry, created: new Date().toISOString().split('T')[0]}))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-  const sig = await hmac(payload);
-  const licenseKey = payload + '.' + sig;
-
-  // Speichern
   const licenses = getLicenses();
-  licenses.unshift({id, name, email, expiry, licenseKey, created: new Date().toISOString().split('T')[0], active: true});
+  const nextId = licenses.length + 1;
+  const licenseKey = _generateKey(nextId, expiry);
+
+  licenses.unshift({
+    id: 'DO-' + String(nextId).padStart(4,'0'),
+    name, email, expiry, licenseKey,
+    created: new Date().toISOString().split('T')[0]
+  });
   saveLicenses(licenses);
 
   renderList();
   updateStats();
-  toast('Lizenz für "' + name + '" erstellt', 'ok');
+  toast('Lizenz für "' + name + '" erstellt: ' + licenseKey, 'ok');
   document.getElementById('licName').value = '';
   document.getElementById('licEmail').value = '';
 }
