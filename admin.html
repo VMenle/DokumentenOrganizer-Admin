@@ -154,11 +154,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
         <div class="card">
           <div class="card-title"><span class="icon">⚙️</span>Admin-Einstellungen</div>
           <div class="fg">
-            <label>Admin-Passwort ändern</label>
-            <input type="password" id="newPw" placeholder="Neues Passwort">
+            <label>Aktuelles Passwort</label>
+            <input type="password" id="currentPw" placeholder="Aktuelles Passwort">
+          </div>
+          <div class="fg">
+            <label>Neues Passwort</label>
+            <input type="password" id="newPw" placeholder="Mindestens 8 Zeichen">
           </div>
           <button class="btn btn-ghost btn-sm" onclick="changePw()">Passwort ändern</button>
           <hr class="divider">
+          <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--warn);line-height:1.6;margin-bottom:12px;">
+            ⚠️ <strong>Wichtig:</strong> Alle Lizenzen werden im Browser-Speicher (localStorage) gespeichert. Wenn du den Browser-Cache oder die Website-Daten löschst, gehen alle Lizenzen verloren.<br>
+            → Regelmäßig <strong>CSV exportieren</strong> als Backup!
+          </div>
           <div class="fg">
             <label>Geheimer Signierschlüssel</label>
             <div class="hint" style="margin-bottom:6px;">Muss in beiden Dateien (admin.html + index.html) identisch sein. Nur ändern wenn beide Dateien gleichzeitig aktualisiert werden.</div>
@@ -193,7 +201,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 // ADMIN AUTH
 // ══════════════════════════════════════════════
 // Standard-Passwort: DokuAdmin2025 (bitte nach erstem Login ändern!)
-const DEFAULT_PW_HASH = '8b4f2a9c1e3d6b7a0f5c8e2d4a9b1c3e'; // Platzhalter – wird durch Hash ersetzt
+let _failedAttempts = 0;
+let _lockUntil = 0;
 
 async function hashPw(pw) {
   const enc = new TextEncoder();
@@ -202,22 +211,39 @@ async function hashPw(pw) {
 }
 
 async function checkPw() {
+  // Brute-Force-Schutz
+  if (Date.now() < _lockUntil) {
+    const remaining = Math.ceil((_lockUntil - Date.now()) / 1000);
+    document.getElementById('pwErr').textContent = 'Zu viele Versuche – bitte ' + remaining + 's warten';
+    document.getElementById('pwErr').style.display = 'block';
+    return;
+  }
+
   const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
   const hash = await hashPw(pw);
   const stored = localStorage.getItem('ds_admin_pw_hash');
 
-  // Erst-Login: Kein Hash gespeichert → Standard-Passwort prüfen
+  let ok = false;
   if (!stored) {
-    if (pw === 'DokuAdmin2025') {
-      localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
-      showAdmin();
-    } else {
-      showPwErr();
-    }
-    return;
+    ok = (pw === 'DokuAdmin2025');
+    if (ok) localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
+  } else {
+    ok = (hash === stored);
   }
-  if (hash === stored) { showAdmin(); }
-  else { showPwErr(); }
+
+  if (ok) {
+    _failedAttempts = 0;
+    showAdmin();
+  } else {
+    _failedAttempts++;
+    // Exponentieller Lockout: 3s, 10s, 30s, 60s nach 3/5/7/9 Fehlversuchen
+    if (_failedAttempts >= 9) _lockUntil = Date.now() + 60000;
+    else if (_failedAttempts >= 7) _lockUntil = Date.now() + 30000;
+    else if (_failedAttempts >= 5) _lockUntil = Date.now() + 10000;
+    else if (_failedAttempts >= 3) _lockUntil = Date.now() + 3000;
+    showPwErr();
+  }
 }
 
 function showAdmin() {
@@ -226,11 +252,12 @@ function showAdmin() {
   document.getElementById('pwInput').value = '';
   renderList();
   updateStats();
-  // Ablaufdatum vorausfüllen (1 Jahr)
+  // Ablaufdatum vorausfüllen (1 Jahr) – Listener nur einmal setzen
   const d = new Date();
   d.setFullYear(d.getFullYear() + 1);
   document.getElementById('licExpiry').value = d.toISOString().split('T')[0];
-  document.getElementById('licType').addEventListener('change', updateExpiry);
+  const licTypeEl = document.getElementById('licType');
+  licTypeEl.onchange = updateExpiry; // onchange statt addEventListener → kein Duplikat
 }
 
 function showPwErr() {
@@ -244,11 +271,26 @@ function logout() {
 }
 
 async function changePw() {
-  const pw = document.getElementById('newPw').value.trim();
-  if (pw.length < 8) { toast('Passwort muss mindestens 8 Zeichen haben', 'err'); return; }
-  localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
+  const currentPw = document.getElementById('currentPw').value.trim();
+  const newPwVal = document.getElementById('newPw').value.trim();
+
+  if (!currentPw) { toast('Bitte aktuelles Passwort eingeben', 'err'); return; }
+  if (newPwVal.length < 8) { toast('Neues Passwort muss mindestens 8 Zeichen haben', 'err'); return; }
+  if (currentPw === newPwVal) { toast('Neues Passwort muss sich vom aktuellen unterscheiden', 'warn'); return; }
+
+  // Aktuelles Passwort verifizieren
+  const currentHash = await hashPw(currentPw);
+  const stored = localStorage.getItem('ds_admin_pw_hash');
+  const defaultOk = (!stored && currentPw === 'DokuAdmin2025');
+  if (!defaultOk && currentHash !== stored) {
+    toast('Aktuelles Passwort ist falsch', 'err');
+    return;
+  }
+
+  localStorage.setItem('ds_admin_pw_hash', await hashPw(newPwVal));
+  document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value = '';
-  toast('Passwort geändert', 'ok');
+  toast('✓ Passwort erfolgreich geändert', 'ok');
 }
 
 function updateExpiry() {
@@ -310,7 +352,7 @@ function generateLicense() {
   if (!expiry) { toast('Bitte Ablaufdatum wählen', 'err'); return; }
 
   const licenses = getLicenses();
-  const nextId = licenses.length + 1;
+  const nextId = naechsteId(licenses);
   const licenseKey = _generateKey(nextId, expiry);
 
   licenses.unshift({
@@ -327,15 +369,31 @@ function generateLicense() {
   document.getElementById('licEmail').value = '';
 }
 
-// ══════════════════════════════════════════════
-// LICENSE STORAGE
-// ══════════════════════════════════════════════
 function getLicenses() {
   try { return JSON.parse(localStorage.getItem('ds_admin_licenses') || '[]'); } catch(e) { return []; }
 }
 
 function saveLicenses(list) {
-  localStorage.setItem('ds_admin_licenses', JSON.stringify(list));
+  try {
+    localStorage.setItem('ds_admin_licenses', JSON.stringify(list));
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      toast('Speicher voll – bitte alten CSV-Export erstellen und Lizenzen bereinigen', 'err');
+    } else {
+      toast('Speicherfehler: ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+}
+
+/** Nächste freie ID ermitteln – kollisionssicher auch nach Löschungen */
+function naechsteId(licenses) {
+  if (licenses.length === 0) return 1;
+  const maxNum = Math.max(...licenses.map(l => {
+    const m = (l.id || '').match(/(\d+)$/);
+    return m ? parseInt(m[1]) : 0;
+  }));
+  return maxNum + 1;
 }
 
 // ══════════════════════════════════════════════
@@ -349,22 +407,38 @@ function renderList() {
 
   if (licenses.length === 0) { list.innerHTML = '<div class="empty">Keine Lizenzen gefunden</div>'; return; }
 
-  list.innerHTML = licenses.map(l => {
+  // Lizenzdaten sicher im DOM über data-index speichern statt in onclick-Strings
+  list.innerHTML = licenses.map((l, idx) => {
     const expired = new Date(l.expiry) < new Date();
-    return '<div class="lic-card">' +
+    return '<div class="lic-card" data-idx="' + idx + '">' +
       '<div class="lic-card-top">' +
       '<div><div class="lic-name">' + esc(l.name) + '</div><div class="lic-id">' + esc(l.id) + (l.email ? ' · ' + esc(l.email) : '') + '</div></div>' +
       '<span class="lic-badge ' + (expired ? 'lic-expired' : 'lic-active') + '">' + (expired ? 'ABGELAUFEN' : 'AKTIV') + '</span>' +
       '</div>' +
       '<div class="lic-key-wrap"><div class="lic-key">' + esc(l.licenseKey) + '</div></div>' +
-      '<div class="lic-meta">Erstellt: ' + esc(l.created) + ' · Ablauf: ' + esc(l.expiry) + '</div>' +
+      '<div class="lic-meta">Erstellt: ' + esc(l.created||'–') + ' · Ablauf: ' + esc(l.expiry||'–') + '</div>' +
       '<div class="lic-actions">' +
-      '<button class="btn btn-ghost btn-sm" onclick="copyLic(\'' + esc(l.licenseKey) + '\')">📋 Kopieren</button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="sendEmail(\'' + esc(l.email) + '\',\'' + esc(l.name) + '\',\'' + esc(l.licenseKey) + '\')">✉ E-Mail</button>' +
-      '<button class="btn btn-danger btn-sm" onclick="deleteLic(\'' + esc(l.id) + '\')">Löschen</button>' +
+      '<button class="btn btn-ghost btn-sm" data-action="copy" data-idx="' + idx + '">📋 Kopieren</button>' +
+      '<button class="btn btn-ghost btn-sm" data-action="email" data-idx="' + idx + '"' + (!l.email ? ' disabled title="Keine E-Mail"' : '') + '>✉ E-Mail</button>' +
+      '<button class="btn btn-danger btn-sm" data-action="delete" data-idx="' + idx + '">Löschen</button>' +
       '</div>' +
       '</div>';
   }).join('');
+
+  // Event-Delegation statt inline onclick
+  list.onclick = function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const allLicenses = getLicenses();
+    const filteredLicenses = query ? allLicenses.filter(l => (l.name+l.email+l.id).toLowerCase().includes(query)) : allLicenses;
+    const idx = parseInt(btn.dataset.idx);
+    const l = filteredLicenses[idx];
+    if (!l) return;
+    if (action === 'copy') copyLic(l.licenseKey);
+    else if (action === 'email') sendEmail(l.email, l.name, l.licenseKey);
+    else if (action === 'delete') deleteLic(l.id);
+  };
 }
 
 function updateStats() {
@@ -387,7 +461,10 @@ function sendEmail(email, name, key) {
     'Öffne die App und gib diesen Schlüssel auf dem Startbildschirm ein.\n\n' +
     'Viel Erfolg!\n'
   );
-  window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
+  // window.open statt location.href – verhindert Seitenverlust
+  const mailLink = 'mailto:' + encodeURIComponent(email) + '?subject=' + subject + '&body=' + body;
+  window.open(mailLink, '_blank');
+  toast('E-Mail-Client wird geöffnet...', 'info');
 }
 
 function deleteLic(id) {
@@ -405,16 +482,20 @@ function exportCSV() {
   const rows = [['ID','Name','E-Mail','Erstellt','Ablauf','Status','Schlüssel']];
   licenses.forEach(l => {
     const expired = new Date(l.expiry) < new Date();
-    rows.push([l.id, l.name, l.email||'', l.created, l.expiry, expired?'Abgelaufen':'Aktiv', l.licenseKey]);
+    rows.push([l.id, l.name, l.email||'', l.created||'', l.expiry, expired?'Abgelaufen':'Aktiv', l.licenseKey]);
   });
-  const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'dokumentenorganizer-lizenzen-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.href = url;
+  a.download = 'dokumentenorganizer-lizenzen-' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
-  toast('CSV exportiert', 'ok');
+  document.body.removeChild(a);
+  // Verzögert freigeben – Download muss erst starten
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast('✓ CSV exportiert (' + licenses.length + ' Einträge)', 'ok');
 }
 
 function toggleSecret() {
