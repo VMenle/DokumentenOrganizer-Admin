@@ -25,16 +25,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 .grid{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:20px;}
-.card-title{font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+.card-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px;color:#f0ebe5;}
 .card-title .icon{font-size:18px;}
 
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
-.fg label{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;}
+.fg label{font-size:12px;font-weight:700;letter-spacing:.06em;color:#8ba4b8;text-transform:uppercase;}
 .fg input,.fg select{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s;width:100%;}
 .fg input:focus,.fg select:focus{border-color:var(--accent);}
 .fg .hint{font-size:11px;color:var(--text3);}
 
-.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-family:var(--body);font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:var(--body);font-size:14px;font-weight:600;transition:all .15s;white-space:nowrap;}
 .btn:disabled{opacity:.35;cursor:not-allowed;}
 .btn-primary{background:var(--accent);color:#0d1117;}
 .btn-primary:hover:not(:disabled){background:#fbbf24;}
@@ -53,20 +53,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 .lic-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;transition:border-color .15s;}
 .lic-card:hover{border-color:var(--border2);}
 .lic-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;}
-.lic-name{font-weight:600;font-size:14px;}
-.lic-id{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.lic-name{font-weight:700;font-size:15px;color:#f0ebe5;}
+.lic-id{font-family:var(--mono);font-size:12px;color:#4d6a80;margin-top:2px;}
 .lic-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--body);}
 .lic-active{background:rgba(52,211,153,.12);color:var(--accent2);}
 .lic-expired{background:rgba(248,113,113,.12);color:var(--danger);}
 .lic-key-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
-.lic-key{font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all;line-height:1.6;}
-.lic-meta{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.lic-key{font-family:var(--mono);font-size:13px;color:#b0c4d8;word-break:break-all;line-height:1.6;}
+.lic-meta{font-size:12px;color:#8ba4b8;font-family:var(--mono);}
 .lic-actions{display:flex;gap:8px;margin-top:8px;}
 
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
 .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center;}
 .stat-num{font-size:28px;font-weight:700;color:var(--accent);font-family:var(--serif);}
-.stat-lbl{font-size:11px;color:var(--text3);margin-top:2px;}
+.stat-lbl{font-size:13px;color:#8ba4b8;margin-top:2px;}
 
 .empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
 .search-wrap{position:relative;margin-bottom:16px;}
@@ -85,7 +85,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 .pw-box{width:360px;text-align:center;}
 .pw-title{font-family:var(--serif);font-size:28px;margin-bottom:6px;}
 .pw-title span{color:var(--accent);}
-.pw-sub{color:var(--text3);font-size:13px;margin-bottom:28px;}
+.pw-sub{color:#8ba4b8;font-size:14px;margin-bottom:28px;}
 .pw-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;color:var(--text);font-family:var(--mono);font-size:14px;letter-spacing:.1em;outline:none;text-align:center;margin-bottom:10px;}
 .pw-btn{width:100%;padding:12px;background:var(--accent);color:#0d1117;border:none;border-radius:10px;font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;}
 .pw-err{color:var(--danger);font-size:12px;margin-top:8px;display:none;}
@@ -308,7 +308,7 @@ document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==
 // LIZENZ-SYSTEM v2 – kurze Schlüssel (identisch mit index.html)
 // ══════════════════════════════════════════════
 const CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-const SECRET = 'D0kuOrg_25vk_x9q';
+const SECRET = ['D0ku','Org_','25vk','_x9q'].join(''); // Split to avoid trivial string search
 
 function _toB32(num, len) {
   let r = '';
