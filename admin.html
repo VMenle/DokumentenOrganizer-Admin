@@ -162,6 +162,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
             <input type="password" id="newPw" placeholder="Mindestens 8 Zeichen">
           </div>
           <button class="btn btn-ghost btn-sm" onclick="changePw()">Passwort ändern</button>
+
+          <div id="newHashInfo" style="display:none;margin-top:16px;background:rgba(212,130,10,.1);border:1px solid rgba(212,130,10,.3);border-radius:10px;padding:16px;">
+            <div style="font-size:13px;font-weight:700;color:#f0a530;margin-bottom:8px;">⚠ Wichtiger Schritt – sonst geht das Passwort beim nächsten Browser-Reset verloren:</div>
+            <div style="font-size:12px;color:#8ba4b8;margin-bottom:8px;">Kopiere diesen Hash und trage ihn in der Datei <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;">admin.html</code> bei <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;">HARDCODED_PW_HASH</code> ein:</div>
+            <div id="newHashDisplay" style="font-family:var(--mono);font-size:12px;color:#f0ebe5;background:var(--bg);padding:10px 12px;border-radius:6px;word-break:break-all;cursor:pointer;" onclick="copyHash()" title="Klicken zum Kopieren">–</div>
+            <div style="font-size:11px;color:#4d6a80;margin-top:6px;">Klicken zum Kopieren · Dann in admin.html auf GitHub ersetzen</div>
+          </div>
           <hr class="divider">
           <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--warn);line-height:1.6;margin-bottom:12px;">
             ⚠️ <strong>Wichtig:</strong> Alle Lizenzen werden im Browser-Speicher (localStorage) gespeichert. Wenn du den Browser-Cache oder die Website-Daten löschst, gehen alle Lizenzen verloren.<br>
@@ -200,7 +207,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 // ══════════════════════════════════════════════
 // ADMIN AUTH
 // ══════════════════════════════════════════════
-// Standard-Passwort: DokuAdmin2025 (bitte nach erstem Login ändern!)
+// Standard-Passwort: DokuAdmin2025
+// HARDCODED_HASH: SHA-256("DokuAdmin2025" + "_ds_admin_salt")
+// Wird als Fallback genutzt wenn localStorage leer ist (anderer Browser, Cache-Reset)
+// Nach Passwortänderung über changePw() wird der neue Hash in localStorage gespeichert
+// UND hier manuell aktualisiert – Anleitung am Ende der changePw-Funktion.
+const HARDCODED_PW_HASH = '151a50bcf0f8e423f16f4aa11294722d52583fb1608d9874274f34025f884418';
+
 let _failedAttempts = 0;
 let _lockUntil = 0;
 
@@ -208,6 +221,12 @@ async function hashPw(pw) {
   const enc = new TextEncoder();
   const buf = await crypto.subtle.digest('SHA-256', enc.encode(pw + '_ds_admin_salt'));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Gibt den aktuell gültigen Hash zurück:
+// localStorage-Hash hat Vorrang (nach Passwortänderung), sonst Hardcoded-Fallback
+function getStoredHash() {
+  return localStorage.getItem('ds_admin_pw_hash') || HARDCODED_PW_HASH;
 }
 
 async function checkPw() {
@@ -222,22 +241,17 @@ async function checkPw() {
   const pw = document.getElementById('pwInput').value;
   if (!pw) return;
   const hash = await hashPw(pw);
-  const stored = localStorage.getItem('ds_admin_pw_hash');
+  const stored = getStoredHash();
 
-  let ok = false;
-  if (!stored) {
-    ok = (pw === 'DokuAdmin2025');
-    if (ok) localStorage.setItem('ds_admin_pw_hash', await hashPw(pw));
-  } else {
-    ok = (hash === stored);
-  }
+  const ok = (hash === stored);
 
   if (ok) {
     _failedAttempts = 0;
+    // Sicherstellen dass localStorage immer aktuell ist
+    localStorage.setItem('ds_admin_pw_hash', stored);
     showAdmin();
   } else {
     _failedAttempts++;
-    // Exponentieller Lockout: 3s, 10s, 30s, 60s nach 3/5/7/9 Fehlversuchen
     if (_failedAttempts >= 9) _lockUntil = Date.now() + 60000;
     else if (_failedAttempts >= 7) _lockUntil = Date.now() + 30000;
     else if (_failedAttempts >= 5) _lockUntil = Date.now() + 10000;
@@ -280,17 +294,22 @@ async function changePw() {
 
   // Aktuelles Passwort verifizieren
   const currentHash = await hashPw(currentPw);
-  const stored = localStorage.getItem('ds_admin_pw_hash');
-  const defaultOk = (!stored && currentPw === 'DokuAdmin2025');
-  if (!defaultOk && currentHash !== stored) {
+  const stored = getStoredHash();
+  if (currentHash !== stored) {
     toast('Aktuelles Passwort ist falsch', 'err');
     return;
   }
 
-  localStorage.setItem('ds_admin_pw_hash', await hashPw(newPwVal));
+  const newHash = await hashPw(newPwVal);
+  localStorage.setItem('ds_admin_pw_hash', newHash);
   document.getElementById('currentPw').value = '';
   document.getElementById('newPw').value = '';
-  toast('✓ Passwort erfolgreich geändert', 'ok');
+
+  // Neuen Hash anzeigen – muss in admin.html bei HARDCODED_PW_HASH eingetragen werden
+  // damit das Passwort auch nach Cache-Reset gilt
+  document.getElementById('newHashDisplay').textContent = newHash;
+  document.getElementById('newHashInfo').style.display = 'block';
+  toast('✓ Passwort geändert. Bitte Schritt unten ausführen!', 'ok');
 }
 
 function updateExpiry() {
@@ -343,6 +362,12 @@ function _generateKey(licId, expiryDate) {
   return raw.substring(0,4)+'-'+raw.substring(4,8)+'-'+raw.substring(8,12)+'-'+raw.substring(12,16);
 }
 
+function copyHash() {
+  const hash = document.getElementById('newHashDisplay').textContent;
+  if (hash === '–') return;
+  navigator.clipboard.writeText(hash).then(() => toast('Hash kopiert – jetzt in admin.html eintragen', 'ok'));
+}
+
 function generateLicense() {
   const name = document.getElementById('licName').value.trim();
   const email = document.getElementById('licEmail').value.trim();
@@ -355,18 +380,22 @@ function generateLicense() {
   const nextId = naechsteId(licenses);
   const licenseKey = _generateKey(nextId, expiry);
 
-  licenses.unshift({
+  const newEntry = {
     id: 'DO-' + String(nextId).padStart(4,'0'),
     name, email, expiry, licenseKey,
     created: new Date().toISOString().split('T')[0]
-  });
+  };
+  licenses.unshift(newEntry);
   saveLicenses(licenses);
 
   renderList();
   updateStats();
-  toast('Lizenz für "' + name + '" erstellt: ' + licenseKey, 'ok');
+  toast('✓ Lizenz für "' + name + '" erstellt: ' + licenseKey, 'ok');
   document.getElementById('licName').value = '';
   document.getElementById('licEmail').value = '';
+
+  // Automatisch CSV exportieren bei jeder neuen Lizenz
+  autoExportCSV(licenses, newEntry);
 }
 
 function getLicenses() {
@@ -474,6 +503,29 @@ function deleteLic(id) {
   renderList();
   updateStats();
   toast('Lizenz gelöscht', 'ok');
+}
+
+// Automatischer Export bei jeder Lizenzvergabe
+function autoExportCSV(licenses, newEntry) {
+  try {
+    const rows = [['ID','Name','E-Mail','Erstellt','Ablauf','Schlüssel']];
+    licenses.forEach(l => {
+      rows.push([l.id, l.name, l.email||'', l.created||'', l.expiry, l.licenseKey]);
+    });
+    const csv = '\uFEFF' + rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'DO-Lizenzen-Backup-' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast('📥 Backup-CSV automatisch heruntergeladen', 'info');
+  } catch(e) {
+    console.warn('Auto-Export fehlgeschlagen:', e.message);
+  }
 }
 
 function exportCSV() {
